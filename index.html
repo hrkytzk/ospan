@@ -1,0 +1,317 @@
+<html>
+    <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <script>
+            let currentAnswer = "";
+            let currentAdjustAnswer = "";
+
+            let game_slot = [4,5,6,7,8,9];
+            let current_slot = 0;
+            let currentIdx = 0;
+            let fail_limit = 1;
+
+            let process_slot_idx = 0;
+
+            let fail_count = 0;
+
+            let reached_slot = 0;
+
+            function init(){
+                generateFomula();
+            }
+
+            function getRandomInt(exclude, min) {
+                let randomInt;
+                do {
+                    randomInt = Math.floor(Math.random() * 9) + 1;
+                } while ((exclude !== undefined && randomInt === exclude) || 
+                        (min !== undefined && randomInt <= min));
+                return randomInt;
+            }
+
+            function getRandomSign() {
+                return Math.random() < 0.5 ? '+' : '-';
+            }
+
+            function isEven(number) {
+                return number % 2 === 0;
+            }
+
+            function getDivisors(number) {
+                const divisors = [];
+                for (let i = 2; i < number; i++) {
+                    if (number % i === 0) {
+                    divisors.push(i);
+                    }
+                }
+                return divisors;
+            }
+
+            function getRandomDivisor(number) {
+                // 約数を取得し、1から9の範囲内のものだけをフィルタリング
+                const divisors = getDivisors(number).filter(divisor => divisor >= 1 && divisor <= 9);
+                if (divisors.length === 0) return null; // 1から9の範囲内に約数がない場合
+
+                // ランダムに約数を選んで返す
+                const randomIndex = Math.floor(Math.random() * divisors.length);
+                return divisors[randomIndex];
+            }
+
+            function adjustAnswer(answer) {
+                if (Math.random() < 0.5) {
+                    // ずらす方向をランダムに選ぶ
+                    const adjustment = Math.random() < 0.5 ? -1 : 1;
+                    const adjustedAnswer = answer + adjustment;
+                    // マイナスにならないようにする
+                    return adjustedAnswer >= 0 ? adjustedAnswer : answer;
+                }
+                return answer;
+            }
+
+            function generateFomula(){
+                function parentheses(){
+                    let num1 = getRandomInt();
+                    let num2 = getRandomInt(num1);
+                    const x = num1 > num2 ? num1 : num2;
+                    const y = num1 > num2 ? num2 : num1;
+                    const exp = `(${x} ${getRandomSign()} ${y})`;
+                    return exp;
+                }
+                
+                const exp1 = parentheses();
+                const exp1_result = eval(exp1);
+                let exp2_sign = "*";
+                let exp2_rd = getRandomDivisor(exp1_result);
+                let exp2 = "";
+                if (isEven(exp1_result) && exp2_rd != null){
+                    exp2_sign = "/";
+                    exp2 = exp2_rd;
+                }else{
+                    exp2_sign = "*";
+                    exp2 = getRandomInt();
+                }
+
+                let exp2_result = eval(`${exp1} ${exp2_sign} ${exp2}`);
+                let exp3_rd = getRandomDivisor(exp2_result);
+                let exp3_sign = "/";
+                let exp3 = "";
+                if (exp3_rd != null){
+                    exp3_sign = "/";
+                    exp3 = exp3_rd;
+                }else{
+                    exp3_sign = "*";
+                    exp3 = getRandomInt();
+                }
+
+                //document.getElementById("memo").value = `${exp1} ${exp2_sign} ${exp2} ${exp3_sign} ${exp3}`;
+                const f = `${exp1} ${exp2_sign} ${exp2} ${exp3_sign} ${exp3}`
+                currentAnswer =  eval(`${f}`);
+                currentAdjustAnswer = adjustAnswer(currentAnswer);
+                document.getElementById("fomula").innerText = `${f} = ${currentAdjustAnswer}`;
+                currentIdx++;
+                
+            }
+
+            function judge(ans){
+                if(ans === 0 && currentAnswer === currentAdjustAnswer){
+                    //addLog("[Calc] CORRECT");
+                }else if (ans === 1 && currentAnswer !== currentAdjustAnswer) {
+                    //addLog("[Calc] CORRECT");
+                }else {
+                    //addLog("[Calc] INCORRECT");
+                }
+                if (currentIdx < current_slot){
+                    switchContainer();
+                    recall_letter();
+                } else {
+                    currentIdx = 0;
+                    showRecallInput();
+                }
+
+               
+            }
+            function addLog(message) {
+                const logList = document.getElementById("logList");
+
+                // 新しい li 要素を作成してメッセージを設定
+                const logItem = document.createElement("li");
+                logItem.textContent = message;
+
+                // 新しいログをリストの最後に追加
+                logList.appendChild(logItem);
+
+                // スクロールを自動的に下に移動
+                logList.parentNode.scrollTop = logList.parentNode.scrollHeight;
+            }
+
+            function toggleVisibility(id) {
+                const element = document.getElementById(id);
+                if (element.style.display === "none") {
+                    element.style.display = "block"; // 表示
+                } else {
+                    element.style.display = "none";  // 非表示
+                }
+            }
+
+            /**
+             * ランダムな文字を覚える
+             */
+
+            let recall_slot = [];
+
+            function recall_letter(){
+                const r = getRandomUppercaseLetter();
+                recall_slot.push(r);
+                document.getElementById("recall").innerText = r;
+                setTimeout(()=>{switchContainer();generateFomula();},2000);
+            }
+
+            function switchContainer(){
+                toggleVisibility("fomula_container");
+                toggleVisibility("recall_container");
+            }
+
+            function getRandomUppercaseLetter() {
+                const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+                return alphabet[Math.floor(Math.random() * alphabet.length)];
+            }
+
+
+            function start(){
+                document.getElementById("description").style.display = "none";
+                current_slot = game_slot[process_slot_idx];
+                recall_letter();
+            }
+
+            /**
+             *  文字の入力エリア
+             */
+            function recall_judge(){
+                let v = document.getElementById("input_answer").value.trim().toUpperCase();
+                document.getElementById("input_answer").value = "";
+                if (recall_slot.join('') === v){
+                    // 答えがあっていた場合
+                    reached_slot = game_slot[process_slot_idx];
+                    // game_slotを使い果たした場合終了
+                    if (game_slot.length -1 <= process_slot_idx){
+                        alert(`slot over: your score is ${reached_slot}`);
+                        return;
+                    }
+                    process_slot_idx++;
+                    current_slot=game_slot[process_slot_idx];
+                    hideRecallInput();
+                    recall_slot = [];
+                    recall_letter();                    
+                }else{
+                    // 答えが間違っていた場合
+                    fail_count++;
+                    if (fail_count > fail_limit){
+                        alert(`limit over: your score is ${reached_slot}`);
+                        return;
+                    } else {
+                        hideRecallInput();
+                        recall_slot = [];
+                        recall_letter();
+                    }
+                }
+            }
+
+            function showRecallInput(){
+                const recallInput = document.getElementById("recall_input_container").style.display = "block";
+                const fomula = document.getElementById("fomula_container").style.display = "none";
+                const recall = document.getElementById("recall_container").style.display = "none";
+            }
+
+            function hideRecallInput(){
+                const recallInput = document.getElementById("recall_input_container").style.display = "none";
+                const fomula = document.getElementById("fomula_container").style.display = "none";
+                const recall = document.getElementById("recall_container").style.display = "block";
+            }
+
+
+
+        </script>
+        <style>
+            .container {
+                font-family: arial;
+                font-size: 24px;
+                margin: 25px;
+                width: 600px;
+                height: 400px;
+                margin: auto;
+            }
+            p {
+                /* 水平方向の中央揃え */
+                text-align: center;
+            }
+            .btn {
+                width: 100px;
+                font-size: 16px;
+                font-weight: bold;
+                padding: 20px;
+                margin: 30px;
+                background: #fff;
+            }
+            #recall{
+                font-size: 64px;
+            }
+            #fomula{
+                font-size: 32px;
+            }
+        </style>
+    </head>
+    <body>
+        <!--
+        <button onclick="generateFomula()">Generate</button>
+        -->
+       
+        <div class="container">
+            <div class="header">
+                <h1>Operation Span Task</h1>
+            </div>
+            <div id="description">
+                <p style="text-align: left;font-size:20px;">
+                    ゲームがスタートすると短時間アルファベットが表示されるので記憶してください。<br/><br/>
+                    その後、計算式が表示されるので、等式が成り立っているか YES OR NO のボタンを押して回答してください。<br/><br/>
+                    ゲームはtermに分かれています。最初のtermでは4文字のアルファベットを記憶することになります。<br/>
+                    4文字の記憶と4回の計算を終えた後、覚えた文字を入力して解答します。<br/>
+                    正解していても間違っていても次のtermに移動します。<br/>
+                    正解していた場合は次のtermでは5文字を覚えることになります。<br/>
+                    間違っていた場合はまた4文字を覚えることになります。<br/>
+                    合計2回間違えるとゲームは強制終了です。<br/>
+                    <br/>
+                </p>
+                <p>
+                    <button class="btn" onclick="start()">Start</button>
+                </p>
+            </div>
+            <div id="fomula_container" style="display: none">
+                <p id="fomula"></p>
+                <p>
+                    <button class="btn" onclick="judge(0)">YES</button>
+                    <button class="btn" onclick="judge(1)">NO</button>
+                </p>
+            </div>
+            <div id="recall_container" style="display: block">
+                <p id="recall">
+                </p>
+            </div>
+            <div id="recall_input_container" style="display: none;">
+                <p>
+                    表示されたアルファベットを入力してください。<br/>（大文字小文字を問いません）
+                </p>
+                <p>
+                    <div style="text-align: center;">
+                        <input id="input_answer" type="text"/>
+                    </div>
+                    <div style="text-align: center;">
+                        <button class="btn" onclick="recall_judge()">送信</button>
+                    </div>
+                </p>
+            </div>
+        </div>
+        <div class="log-console">
+            <ol id="logList"></ul>
+        </div>
+    </body>
+</html>
